@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Checklist Obra">
+<title>Checklist Visita de Obra</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FAFAF7;
+    --border: #E0DDD6;
+    --border-strong: #C8C4BB;
+    --text: #1A1916;
+    --text-muted: #7A7770;
+    --text-hint: #B0ADA6;
+    --ok: #2D6A4F;
+    --ok-bg: #D8F3DC;
+    --nok: #C1121F;
+    --nok-bg: #FFE5E5;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; -webkit-tap-highlight-color: transparent; }
+
+  .header { background: var(--text); color: var(--bg); padding: 20px 20px 16px; position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .header h1 { font-size: 13px; font-family: var(--mono); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
+  .obra-tag { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border: 1px solid rgba(255,255,255,0.25); border-radius: 3px; opacity: 0.7; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; }
+  .progress-track { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #fff; border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+  .progress-label { font-family: var(--mono); font-size: 11px; opacity: 0.6; min-width: 60px; text-align: right; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .setup-wrap { padding: 24px 20px 100px; }
+  .setup-section { margin-bottom: 24px; }
+  .setup-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+
+  .obra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .obra-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; text-align: left; transition: all 0.15s; line-height: 1.3; }
+  .obra-btn:active { opacity: 0.7; }
+  .obra-btn.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .fase-list { display: flex; flex-direction: column; gap: 6px; }
+  .fase-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; font-family: var(--sans); font-size: 14px; font-weight: 400; color: var(--text); cursor: pointer; text-align: left; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s; }
+  .fase-btn:active { opacity: 0.7; }
+  .fase-btn.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .fase-count { font-family: var(--mono); font-size: 11px; opacity: 0.5; }
+
+  .start-btn { width: 100%; padding: 14px; background: var(--text); color: var(--bg); border: none; border-radius: 6px; font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; margin-top: 8px; }
+  .start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .start-btn:active:not(:disabled) { opacity: 0.7; }
+
+  .tipo-bar { padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tipo-bar::-webkit-scrollbar { display: none; }
+  .tipo-inner { display: flex; gap: 6px; width: max-content; }
+  .tipo-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--text-muted); white-space: nowrap; transition: all 0.15s; }
+  .tipo-chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .items-wrap { padding: 12px 20px 120px; }
+  .item-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .item-row:last-child { border-bottom: none; }
+
+  .cb { width: 22px; height: 22px; min-width: 22px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; margin-top: 1px; }
+  .cb.ok { background: var(--ok-bg); border-color: var(--ok); }
+  .cb.nok { background: var(--nok-bg); border-color: var(--nok); }
+
+  .item-text { font-size: 14px; line-height: 1.4; flex: 1; padding-top: 2px; }
+  .item-text.ok { color: var(--text-hint); text-decoration: line-through; }
+  .item-text.nok { color: var(--nok); font-weight: 500; }
+
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 20px; padding-bottom: max(12px, env(safe-area-inset-bottom)); display: none; }
+  .footer.visible { display: flex; gap: 8px; }
+  .btn-secondary { flex: 0 0 auto; padding: 11px 16px; background: transparent; border: 1px solid var(--border-strong); border-radius: 6px; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+  .btn-primary { flex: 1; padding: 11px 16px; background: var(--text); border: none; border-radius: 6px; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--bg); cursor: pointer; }
+  .btn-primary:active { opacity: 0.7; }
+  .btn-primary:disabled { opacity: 0.4; }
+
+  .confirm-wrap { padding: 24px 20px 120px; }
+  .confirm-section { margin-bottom: 20px; }
+  .confirm-title { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+
+  .stats-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .stat-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-num { font-family: var(--mono); font-size: 22px; font-weight: 500; margin-bottom: 2px; }
+  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-card.ok-card .stat-num { color: var(--ok); }
+  .stat-card.nok-card .stat-num { color: var(--nok); }
+
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .summary-row { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; gap: 8px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .label { color: var(--text-muted); min-width: 70px; font-size: 12px; }
+  .summary-row .val { font-weight: 500; flex: 1; }
+
+  .incid-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .incid-item { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; gap: 8px; align-items: flex-start; }
+  .incid-item:last-child { border-bottom: none; }
+  .incid-dot { width: 6px; height: 6px; min-width: 6px; border-radius: 50%; background: var(--nok); margin-top: 5px; }
+
+  .nota-input { width: 100%; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-family: var(--sans); font-size: 13px; color: var(--text); resize: none; height: 80px; outline: none; }
+  .nota-input:focus { border-color: var(--border-strong); }
+
+  .result-wrap { padding: 48px 20px; text-align: center; }
+  .result-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--ok-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+  .result-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .result-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5; }
+  .result-link { display: inline-block; margin-top: 20px; padding: 11px 24px; background: var(--text); color: var(--bg); border-radius: 6px; font-size: 13px; font-weight: 500; text-decoration: none; }
+  .result-new-btn { display: block; margin-top: 12px; padding: 11px 20px; background: transparent; border: 1px solid var(--border-strong); color: var(--text-muted); border-radius: 6px; font-size: 13px; font-family: var(--sans); cursor: pointer; width: 100%; }
+
+  .error-box { background: var(--nok-bg); border: 1px solid var(--nok); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--nok); margin-bottom: 12px; display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(245,243,238,0.3); border-top-color: var(--bg); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>Checklist · Visita</h1>
+    <span class="obra-tag" id="header-obra">—</span>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+    <span class="progress-label" id="prog-label">0 / 0</span>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div class="screen active" id="screen-setup">
+  <div class="setup-wrap">
+    <div class="setup-section">
+      <div class="setup-label">Obra</div>
+      <div class="obra-grid" id="obra-grid"></div>
+    </div>
+    <div class="setup-section">
+      <div class="setup-label">Fase a revisar</div>
+      <div class="fase-list" id="fase-list"></div>
+    </div>
+    <button class="start-btn" id="start-btn" disabled onclick="startChecklist()">Iniciar checklist →</button>
+  </div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="screen" id="screen-checklist">
+  <div class="tipo-bar"><div class="tipo-inner" id="tipo-inner"></div></div>
+  <div class="items-wrap" id="items-wrap"></div>
+  <div class="footer visible" id="footer-checklist">
+    <button class="btn-secondary" onclick="goSetup()">← Volver</button>
+    <button class="btn-primary" onclick="goConfirm()">Finalizar →</button>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="screen" id="screen-confirm">
+  <div class="confirm-wrap">
+    <div class="confirm-section">
+      <div class="confirm-title">Resumen</div>
+      <div class="stats-row">
+        <div class="stat-card ok-card"><div class="stat-num" id="sum-ok">0</div><div class="stat-label">Ok</div></div>
+        <div class="stat-card nok-card"><div class="stat-num" id="sum-nok">0</div><div class="stat-label">Incid.</div></div>
+        <div class="stat-card"><div class="stat-num" id="sum-pend">0</div><div class="stat-label">Pendiente</div></div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-row"><span class="label">Obra</span><span class="val" id="sum-obra">—</span></div>
+        <div class="summary-row"><span class="label">Fase</span><span class="val" id="sum-fase">—</span></div>
+        <div class="summary-row"><span class="label">Fecha</span><span class="val" id="sum-fecha">—</span></div>
+      </div>
+    </div>
+    <div class="confirm-section" id="incid-section" style="display:none">
+      <div class="confirm-title">Incidencias detectadas</div>
+      <div class="incid-list" id="incid-list"></div>
+    </div>
+    <div class="confirm-section">
+      <div class="confirm-title">Notas adicionales</div>
+      <textarea class="nota-input" id="nota-input" placeholder="Observaciones para el acta..."></textarea>
+    </div>
+    <div class="error-box" id="error-box"></div>
+  </div>
+  <div class="footer visible">
+    <button class="btn-secondary" onclick="goChecklist()">← Editar</button>
+    <button class="btn-primary" id="save-btn" onclick="saveToNotion()">Guardar en Notion →</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-wrap">
+    <div class="result-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <div class="result-title">Visita guardada</div>
+    <div class="result-sub" id="result-sub"></div>
+    <a class="result-link" id="result-link" href="#" target="_blank">Abrir en Notion →</a>
+    <button class="result-new-btn" onclick="resetAll()">Nueva visita</button>
+  </div>
+</div>
+
+<script>
+const OBRAS = [
+  { name: "VBC – Villa Bas Castillo", id: "36d5cd7c-fc57-81f4-b8e0-f7ee88302fb0" },
+  { name: "SIBELIUS", id: "2ba5cd7c-fc57-8097-8e11-f792dfcfa3ad" },
+  { name: "MGN – Villa Halo", id: "2ba5cd7c-fc57-8006-83bc-d5f2eabad38d" },
+  { name: "GUADALMINA", id: "2ba5cd7c-fc57-8025-81fa-d62d3c47b1ff" },
+  { name: "VILLA FIGARO", id: "2ba5cd7c-fc57-8089-80fe-c7938edbdc84" },
+  { name: "BANÚS", id: "2b45cd7c-fc57-80e2-a879-ebc0b3b420dc" }
+];
+
+const DB_ID = "2ba5cd7c-fc57-800f-b860-000be3d5c676";
+
+const FASE_NOTION = {
+  "Cimentación": "Cimentación", "Estructura": "Estructura",
+  "Cerramientos": "Cerramientos", "Tabiquería seca": "Cerramientos",
+  "Instalaciones": "Instalaciones", "Acabados": "Acabados", "Seguridad": "Estructura"
+};
+
+const DATA = {
+  "Cimentación": {
+    "Replanteo": ["Replanteo de cimentación","Cotas y niveles verificados","Separación respecto a linderos"],
+    "Armadura": ["Armadura inferior revisada","Separadores y distancias a encofrado","Recubrimientos mínimos","Armaduras de refuerzo en apoyos","Esperas para plantas superiores"],
+    "Encofrado": ["Estado de encofrados","Superficie limpia sin lechada previa","Encofrado correctamente apuntalado","Pasatubos y reservas colocados"],
+    "Hormigonado": ["Albarán y trazabilidad del hormigón","Control de consistencia (cono)","Toma de probetas","Vibrado correcto","Curado iniciado inmediatamente","Sin adición de agua en obra"]
+  },
+  "Estructura": {
+    "Forjado": ["Canto del forjado verificado","Peralte de vigas","Armadura superior e inferior","Doble mallazo en zonas solicitadas","Refuerzos en vuelos y balcones","Negativos colocados"],
+    "Pilares": ["Alineación vertical","Recubrimientos mínimos","Esperas de continuidad","Longitudes de anclaje"],
+    "Hormigonado": ["Documentación amasada y albarán","Control de consistencia","Temperatura antes del vertido","Vibrado y compactación","Juntas de hormigonado según proyecto","Toma y etiquetado de probetas","Curado prolongado según condiciones"]
+  },
+  "Cerramientos": {
+    "Fábrica": ["Replanteo de muros","Plomada y alineación","Juntas horizontales y verticales","Aislamiento en cámara","Lámina anti-humedad en arranque","Colocación de cargaderos y dinteles","Anclajes a estructura"],
+    "Carpintería ext.": ["Pre-marcos colocados","Marcos nivelados y aplomados","Sellado perimetral interior","Sellado perimetral exterior","Rotura de puente térmico","Vierteaguas con pendiente correcta"],
+    "SATE": ["Adhesivo y fijaciones correctas","Malla y mortero base","Refuerzos en esquinas y huecos","Encuentros con carpintería","Acabado final uniforme"]
+  },
+  "Tabiquería seca": {
+    "Estructura": ["Replanteo y trazado en planta","Plomada y alineación de perfiles","Encuentro de tabique con estructura","Perfiles de arranque con junta acústica"],
+    "Placas": ["Fijación de placas (tornillos a 25cm)","Desfase de juntas entre capas","Sellado acústico en perímetros","Aislamiento acústico interior relleno"],
+    "Instalaciones": ["Rozas inexistentes o autorizadas","Mecanismos eléctricos previstos","Refuerzos para elementos pesados","Pasatubos protegidos"]
+  },
+  "Instalaciones": {
+    "Saneamiento": ["Pendientes mínimas verificadas","Prueba de estanqueidad realizada","Sifones y ventilaciones colocadas","Pendientes en desagüe de duchas"],
+    "Fontanería": ["Trazado sin interferencias","Aislamiento térmico en ACS","Prueba de presión realizada","Válvulas de corte accesibles"],
+    "Electricidad": ["Bandejas alineadas y fijadas","Sección de cables según proyecto","Tomas de tierra conectadas","Separación con bandejas de clima","Cuadro eléctrico accesible"],
+    "Climatización": ["Unidades interiores alineadas","Drenajes con pendiente y goteo","Conductos fijados y sin fugas","Unidades exteriores ventiladas"]
+  },
+  "Acabados": {
+    "Solados": ["Planeidad verificada (regla 3m)","Juntas perimetrales ejecutadas","Pendientes hacia desagües (exterior)","Juntas de movimiento en cerámicos"],
+    "Alicatados": ["Planimetría y nivelación","Enjaquetado y juntas correctas","Juntas perimetrales con silicona","Pendiente en duchas comprobada"],
+    "Carpintería int.": ["Puertas aplomadas y alineadas","Herrajes regulados","Tapetas y remates colocados","Apertura y cierre sin resistencia"],
+    "Remates": ["Sellados de silicona continuos","Rodapiés alineados y fijados","Pinturas sin manchas ni textura irregular","Registros accesibles"]
+  },
+  "Seguridad": {
+    "Colectivas": ["Huecos horizontales protegidos","Huecos verticales protegidos","Barandillas y rodapiés en perímetro","Líneas de vida en cubierta"],
+    "EPIs": ["Casco en uso","Calzado de seguridad","Arnés en trabajos en altura","Guantes y gafas según actividad"],
+    "General": ["Orden y limpieza en obra","Acopios estables y seguros","Extintores accesibles y revisados","Señalización de accesos y riesgos","Cuadro eléctrico con diferencial"]
+  }
+};
+
+let selectedObra = null, selectedFase = null, selectedTipo = null, estado = {};
+
+function init() {
+  const grid = document.getElementById('obra-grid');
+  OBRAS.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'obra-btn';
+    btn.textContent = o.name;
+    btn.onclick = () => selectObra(o);
+    grid.appendChild(btn);
+  });
+  const faseList = document.getElementById('fase-list');
+  Object.keys(DATA).forEach(f => {
+    const total = Object.values(DATA[f]).flat().length;
+    const btn = document.createElement('button');
+    btn.className = 'fase-btn';
+    btn.innerHTML = `<span>${f}</span><span class="fase-count">${total} ítems</span>`;
+    btn.onclick = () => selectFase(f, btn);
+    faseList.appendChild(btn);
+  });
+}
+
+function selectObra(o) {
+  selectedObra = o;
+  document.querySelectorAll('.obra-btn').forEach(b => b.className = 'obra-btn' + (b.textContent === o.name ? ' selected' : ''));
+  document.getElementById('header-obra').textContent = o.name.split('–').pop().trim().split(' ').slice(0,2).join(' ');
+  checkStart();
+}
+
+function selectFase(f, btn) {
+  selectedFase = f;
+  document.querySelectorAll('.fase-btn').forEach(b => b.className = 'fase-btn');
+  btn.className = 'fase-btn selected';
+  checkStart();
+}
+
+function checkStart() {
+  document.getElementById('start-btn').disabled = !(selectedObra && selectedFase);
+}
+
+function startChecklist() {
+  selectedTipo = null; estado = {};
+  renderTipos(); renderItems();
+  showScreen('checklist'); updateProgress();
+}
+
+function renderTipos() {
+  const inner = document.getElementById('tipo-inner');
+  inner.innerHTML = '';
+  const all = document.createElement('span');
+  all.className = 'tipo-chip' + (!selectedTipo ? ' active' : '');
+  all.textContent = 'Todo';
+  all.onclick = () => { selectedTipo = null; renderTipos(); renderItems(); };
+  inner.appendChild(all);
+  Object.keys(DATA[selectedFase]).forEach(t => {
+    const chip = document.createElement('span');
+    chip.className = 'tipo-chip' + (selectedTipo === t ? ' active' : '');
+    chip.textContent = t;
+    chip.onclick = () => { selectedTipo = t; renderTipos(); renderItems(); };
+    inner.appendChild(chip);
+  });
+}
+
+function getItems() {
+  if (!selectedFase) return [];
+  if (selectedTipo) return DATA[selectedFase][selectedTipo] || [];
+  return Object.values(DATA[selectedFase]).flat();
+}
+
+function renderItems() {
+  const wrap = document.getElementById('items-wrap');
+  wrap.innerHTML = '';
+  getItems().forEach(item => {
+    const key = selectedFase + '|' + item;
+    const st = estado[key] || 'none';
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const cb = document.createElement('div');
+    cb.className = 'cb' + (st === 'ok' ? ' ok' : st === 'nok' ? ' nok' : '');
+    if (st === 'ok') cb.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    if (st === 'nok') cb.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C1121F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+    cb.onclick = () => { cycleState(key); renderItems(); updateProgress(); };
+    const text = document.createElement('span');
+    text.className = 'item-text' + (st === 'ok' ? ' ok' : st === 'nok' ? ' nok' : '');
+    text.textContent = item;
+    row.appendChild(cb); row.appendChild(text);
+    wrap.appendChild(row);
+  });
+}
+
+function cycleState(key) {
+  const cur = estado[key] || 'none';
+  estado[key] = cur === 'none' ? 'ok' : cur === 'ok' ? 'nok' : 'none';
+}
+
+function updateProgress() {
+  const all = Object.values(DATA[selectedFase]).flat();
+  const done = all.filter(i => estado[selectedFase+'|'+i] && estado[selectedFase+'|'+i] !== 'none').length;
+  const pct = all.length > 0 ? Math.round(done / all.length * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = done + ' / ' + all.length;
+}
+
+function goSetup() { showScreen('setup'); }
+function goChecklist() { showScreen('checklist'); }
+
+function goConfirm() {
+  const all = Object.values(DATA[selectedFase]).flat();
+  const ok = all.filter(i => estado[selectedFase+'|'+i] === 'ok');
+  const nok = all.filter(i => estado[selectedFase+'|'+i] === 'nok');
+  const pend = all.filter(i => !estado[selectedFase+'|'+i] || estado[selectedFase+'|'+i] === 'none');
+  document.getElementById('sum-ok').textContent = ok.length;
+  document.getElementById('sum-nok').textContent = nok.length;
+  document.getElementById('sum-pend').textContent = pend.length;
+  document.getElementById('sum-obra').textContent = selectedObra.name;
+  document.getElementById('sum-fase').textContent = selectedFase;
+  const now = new Date();
+  document.getElementById('sum-fecha').textContent = now.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  const incidSection = document.getElementById('incid-section');
+  const incidList = document.getElementById('incid-list');
+  incidList.innerHTML = '';
+  if (nok.length > 0) {
+    incidSection.style.display = 'block';
+    nok.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'incid-item';
+      div.innerHTML = `<div class="incid-dot"></div><span>${item}</span>`;
+      incidList.appendChild(div);
+    });
+  } else { incidSection.style.display = 'none'; }
+  document.getElementById('error-box').style.display = 'none';
+  showScreen('confirm');
+}
+
+async function saveToNotion() {
+  const btn = document.getElementById('save-btn');
+  const errBox = document.getElementById('error-box');
+  btn.innerHTML = '<span class="spinner"></span>Guardando...';
+  btn.disabled = true;
+  errBox.style.display = 'none';
+
+  const all = Object.values(DATA[selectedFase]).flat();
+  const ok = all.filter(i => estado[selectedFase+'|'+i] === 'ok');
+  const nok = all.filter(i => estado[selectedFase+'|'+i] === 'nok');
+  const pend = all.filter(i => !estado[selectedFase+'|'+i] || estado[selectedFase+'|'+i] === 'none');
+  const nota = document.getElementById('nota-input').value.trim();
+  const now = new Date();
+  const fechaISO = now.toISOString().split('T')[0];
+  const fechaStr = now.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const titulo = selectedObra.name + ' · ' + selectedFase + ' · ' + fechaStr;
+  const faseNotion = FASE_NOTION[selectedFase] || 'Estructura';
+
+  let asuntos = `Revisión de ${selectedFase}. Conformes: ${ok.length}. Incidencias: ${nok.length}.`;
+  if (nok.length > 0) asuntos += ` Incidencias: ${nok.join(', ')}.`;
+  if (nota) asuntos += ` Notas: ${nota}`;
+
+  const body = {
+    parent: { database_id: DB_ID },
+    properties: {
+      Nombre: { title: [{ text: { content: titulo } }] },
+      "Fase obra": { select: { name: faseNotion } },
+      "Fecha de Visita": { date: { start: fechaISO } },
+      "Asuntos tratados": { rich_text: [{ text: { content: asuntos } }] },
+      Proyecto: { relation: [{ id: selectedObra.id }] }
+    }
+  };
+
+  try {
+    const res = await fetch('/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.id) {
+      const pageUrl = data.url || `https://www.notion.so/${data.id.replace(/-/g,'')}`;
+      document.getElementById('result-sub').textContent = titulo;
+      document.getElementById('result-link').href = pageUrl;
+      showScreen('result');
+    } else {
+      throw new Error(data.message || 'Error de Notion: ' + JSON.stringify(data));
+    }
+  } catch(err) {
+    errBox.textContent = 'Error: ' + err.message;
+    errBox.style.display = 'block';
+    btn.innerHTML = 'Guardar en Notion →';
+    btn.disabled = false;
+  }
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function resetAll() {
+  selectedObra = null; selectedFase = null; selectedTipo = null; estado = {};
+  document.querySelectorAll('.obra-btn').forEach(b => b.className = 'obra-btn');
+  document.querySelectorAll('.fase-btn').forEach(b => b.className = 'fase-btn');
+  document.getElementById('start-btn').disabled = true;
+  document.getElementById('header-obra').textContent = '—';
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('prog-label').textContent = '0 / 0';
+  document.getElementById('nota-input').value = '';
+  showScreen('setup');
+}
+
+init();
+</script>
+</body>
+</html>
